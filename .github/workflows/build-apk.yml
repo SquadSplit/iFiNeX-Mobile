@@ -112,13 +112,20 @@ jobs:
           fi
 
       # Standard Capacitor project: package.json is at the repo root. npm installs the plugins, "cap sync" copies www/ into the Android project and wires the plugins into Gradle.
-      - name: Install packages (npm ci)
-        run: npm ci --no-audit --no-fund
+      # npm ci is strict: if package.json and package-lock.json ever disagree (e.g. "lock file's minipass@6.0.0 does not satisfy minipass@5.0.0")
+      # it stops. Fall back to npm install so a lockfile mismatch can never block an APK build again.
+      - name: Install packages (npm ci, falls back to npm install)
+        run: |
+          npm ci --no-audit --no-fund || {
+            echo "::warning title=package-lock.json was out of sync::npm ci failed, using npm install instead. Commit a fresh package-lock.json when convenient."
+            rm -rf node_modules
+            npm install --no-audit --no-fund
+          }
 
       - name: Copy the website + plugins into the Android project (cap sync)
         run: npx cap sync android
 
-      - name: Compile Debug APK with Gradle
+      - name: Compile signed RELEASE APK with Gradle (not debuggable - Play Protect)
         working-directory: android
         env:
           IFX_VERSION_CODE: ${{ steps.meta.outputs.code }}
@@ -126,14 +133,14 @@ jobs:
           IFX_KEY_ALIAS: ${{ secrets.IFX_KEY_ALIAS }}
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+          ./gradlew assembleRelease --stacktrace
 
       - name: Check the built APK (package, build number, signing certificate)
         id: fp
         env:
           WANT_CODE: ${{ steps.meta.outputs.code }}
         run: |
-          APK=android/app/build/outputs/apk/debug/app-debug.apk
+          APK=android/app/build/outputs/apk/release/app-release.apk
           BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
           BADGE=$("$BT/aapt2" dump badging "$APK" | head -1)
           echo "$BADGE"
@@ -149,7 +156,7 @@ jobs:
           ASSET: ${{ steps.meta.outputs.asset }}
         run: |
           mkdir -p dist
-          cp android/app/build/outputs/apk/debug/app-debug.apk "dist/$ASSET"
+          cp android/app/build/outputs/apk/release/app-release.apk "dist/$ASSET"
           (cd dist && sha256sum "$ASSET" > "$ASSET.sha256" && cat "$ASSET.sha256")
 
       - name: Upload compiled APK artifact
