@@ -12,6 +12,7 @@ public class BootReceiver extends BroadcastReceiver {
         if (Intent.ACTION_BOOT_COMPLETED.equals(a) || Intent.ACTION_MY_PACKAGE_REPLACED.equals(a)
                 || "android.intent.action.QUICKBOOT_POWERON".equals(a)) {
             Context app = context.getApplicationContext();
+            if (IfinexAutoBackup.isEnabled(app)) IfinexAutoBackup.schedule(app);
             if (IfinexNotify.isEnabled(app)) {
                 IfinexNotify.ensureChannels(app);
                 IfinexNotify.schedule(app, 60000L);

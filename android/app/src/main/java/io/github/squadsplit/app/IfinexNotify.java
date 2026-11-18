@@ -51,7 +51,9 @@ final class IfinexNotify {
     static final String CH_ALERTS = "ifinex_alerts";
     static final String CH_DUE = "ifinex_due";
     static final String ACTION_POLL = "io.github.squadsplit.app.POLL";
-    static final int DEFAULT_POLL_SECONDS = 120;
+    /** v7.0: 300 s (was 120 s). Fewer database calls = less Supabase disk IO; a new notification still reaches the phone within about 5 minutes. */
+    static final int DEFAULT_POLL_SECONDS = 300;
+    static final int FLOOR_POLL_SECONDS = 300;
     static final int MIN_POLL_SECONDS = 60;
     static final int MAX_POLL_SECONDS = 900;
     /** Keep identical to NOTIF_ID_BASE in bill-tracker.html: same id => Android REPLACES a notification instead of duplicating it. */
@@ -71,7 +73,7 @@ final class IfinexNotify {
     static boolean isEnabled(Context c) { return prefs(c).getBoolean("enabled", false); }
 
     static long pollDelayMs(Context c) {
-        int s = prefs(c).getInt("poll_s", DEFAULT_POLL_SECONDS);
+        int s = Math.max(FLOOR_POLL_SECONDS, prefs(c).getInt("poll_s", DEFAULT_POLL_SECONDS));   // phones that stored 120 s earlier are moved to 300 s too
         return Math.max(MIN_POLL_SECONDS, Math.min(MAX_POLL_SECONDS, s)) * 1000L;
     }
 

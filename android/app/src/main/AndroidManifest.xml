@@ -47,6 +47,11 @@
                 <action android:name="android.intent.action.QUICKBOOT_POWERON" />
             </intent-filter>
         </receiver>
+        <!-- v7.0: nightly (about 12:00 AM) standalone backup to the user's own Google Drive. JobScheduler runs it even when the app is closed. -->
+        <service
+            android:name=".IfinexBackupJob"
+            android:permission="android.permission.BIND_JOB_SERVICE"
+            android:exported="false" />
     </application>
 
     <!-- Permissions -->
