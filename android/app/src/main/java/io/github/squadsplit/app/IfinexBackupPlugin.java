@@ -33,6 +33,17 @@ public class IfinexBackupPlugin extends Plugin {
         return o;
     }
 
+    /** v14.2: the Google sign-in page sends the browser to <package>://oauth?code=...; MainActivity parks that link here, the web layer picks it up. */
+    static volatile String pendingOAuth = null;
+
+    @PluginMethod
+    public void takeOAuth(PluginCall call) {
+        JSObject o = new JSObject();
+        String u = pendingOAuth; pendingOAuth = null;
+        o.put("url", u == null ? "" : u);
+        call.resolve(o);
+    }
+
     @PluginMethod
     public void status(PluginCall call) {
         call.resolve(statusObject());
