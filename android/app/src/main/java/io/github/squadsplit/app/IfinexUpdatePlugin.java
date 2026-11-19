@@ -204,7 +204,7 @@ public class IfinexUpdatePlugin extends Plugin {
             o.put("packageName", ctx().getPackageName());
             o.put("repo", res("ifinex_update_repo", ""));
             o.put("edition", res("ifinex_update_edition", ""));
-            o.put("canInstall", false);
+            o.put("canInstall", Build.VERSION.SDK_INT < 26 || ctx().getPackageManager().canRequestPackageInstalls());
             try { // which key signed the INSTALLED app (must equal the "Signing certificate SHA-256" in every GitHub Release note)
                 java.util.TreeSet<String> sg = new java.util.TreeSet<>(signers(installed(signFlag())));
                 o.put("certSha256", sg.isEmpty() ? "" : sg.first());
@@ -339,7 +339,23 @@ public class IfinexUpdatePlugin extends Plugin {
 
     @PluginMethod
     public void install(PluginCall call) {
-        call.reject("install_disabled: v14.1 updates open in the browser");
+        try {
+            File f = ready;
+            if (f == null || !f.exists()) { call.reject("nothing_downloaded"); return; }
+            if (Build.VERSION.SDK_INT >= 26 && !ctx().getPackageManager().canRequestPackageInstalls()) {
+                Intent s = new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + ctx().getPackageName()));
+                s.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                ctx().startActivity(s);
+                JSObject o = new JSObject(); o.put("needsPermission", true); call.resolve(o);
+                return;
+            }
+            Uri uri = FileProvider.getUriForFile(ctx(), ctx().getPackageName() + ".fileprovider", f);
+            Intent i = new Intent(Intent.ACTION_VIEW);
+            i.setDataAndType(uri, "application/vnd.android.package-archive");
+            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+            ctx().startActivity(i);
+            JSObject o = new JSObject(); o.put("started", true); call.resolve(o);
+        } catch (Exception e) { call.reject("install_failed: " + e.getMessage()); }
     }
 
     /** v2.14: fallback - open the release file in the phone's browser (used only if the in-app download cannot run). Same host allow-list. */
