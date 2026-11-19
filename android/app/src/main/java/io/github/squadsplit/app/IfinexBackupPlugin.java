@@ -56,20 +56,23 @@ public class IfinexBackupPlugin extends Plugin {
         boolean enabled = en == null || en.booleanValue();
         SharedPreferences.Editor ed = IfinexAutoBackup.prefs(c).edit();
         if (!enabled) {
-            ed.putBoolean("enabled", false).remove("refresh").remove("client_secret").commit();
+            ed.putBoolean("enabled", false).remove("refresh").remove("client_secret").remove("token_proxy").commit();
             IfinexAutoBackup.cancel(c);
             call.resolve(statusObject());
             return;
         }
         String cid = call.getString("clientId");
         String sec = call.getString("clientSecret");
+        String proxy = call.getString("tokenProxy");
+        String apikey = call.getString("apikey");
         String rt = call.getString("refreshToken");
         String email = call.getString("email");
-        if (cid == null || cid.isEmpty() || sec == null || sec.isEmpty() || rt == null || rt.isEmpty()) {
-            call.reject("clientId, clientSecret and refreshToken are required");
+        boolean hasProxy = proxy != null && !proxy.isEmpty();
+        if (cid == null || cid.isEmpty() || ((sec == null || sec.isEmpty()) && !hasProxy) || rt == null || rt.isEmpty()) {
+            call.reject("clientId, (clientSecret or tokenProxy) and refreshToken are required");
             return;
         }
-        ed.putBoolean("enabled", true).putString("client_id", cid).putString("client_secret", sec).putString("refresh", rt)
+        ed.putBoolean("enabled", true).putString("client_id", cid).putString("client_secret", sec == null ? "" : sec).putString("token_proxy", hasProxy ? proxy : "").putString("apikey", apikey == null ? "" : apikey).putString("refresh", rt)
                 .putString("email", email == null ? "" : email).putInt("fails", 0).commit();
         IfinexAutoBackup.schedule(c);
         call.resolve(statusObject());

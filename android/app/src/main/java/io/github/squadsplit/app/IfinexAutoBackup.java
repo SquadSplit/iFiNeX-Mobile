@@ -183,6 +183,19 @@ final class IfinexAutoBackup {
     }
 
     private static String accessToken(SharedPreferences p) throws Exception {
+        String proxy = p.getString("token_proxy", "");
+        if (proxy.length() > 0) {   // v14.3: the client secret lives on the server (Supabase function google-oauth), never in the app
+            JSONObject req = new JSONObject();
+            req.put("action", "refresh");
+            req.put("refresh_token", p.getString("refresh", ""));
+            Object[] pr = http("POST", proxy, null, "application/json", req.toString().getBytes(StandardCharsets.UTF_8));
+            int pcode = ((Integer) pr[0]).intValue();
+            String ptext = (String) pr[1];
+            JSONObject pj = new JSONObject(ptext.length() > 0 ? ptext : "{}");
+            if (pcode == 200 && pj.optString("access_token", "").length() > 0) return pj.getString("access_token");
+            if ("invalid_grant".equals(pj.optString("error", ""))) throw new IllegalStateException("revoked");
+            throw new Exception("token proxy HTTP " + pcode);
+        }
         String body = form(new String[][]{
                 {"client_id", p.getString("client_id", "")},
                 {"client_secret", p.getString("client_secret", "")},
